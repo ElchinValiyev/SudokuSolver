@@ -18,28 +18,39 @@ class LiveCameraActivity extends Activity with TypedFindView with TextureView.Su
 
   private var mCamera: CameraDevice = _
   private var mSession: CameraCaptureSession = _
+
   lazy val mPreviewView = findView(TR.textureView)
+  lazy val layout = findView(TR.live_camera_layout)
+
   private var mJpegCaptureSurface, mPreviewSurface: Surface = _
   private var mPreviewSize: Size = _
   private var mCharacteristics: CameraCharacteristics = _
   private var mCaptureImageFormat: Int = 0
 
+
   override protected def onCreate(savedInstanceState: Bundle) {
     super.onCreate(savedInstanceState)
     setContentView(R.layout.live_camera)
+
     setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT)
     getWindow.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-    getWindow.getDecorView.setSystemUiVisibility(View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY | View.SYSTEM_UI_FLAG_LOW_PROFILE | View.SYSTEM_UI_FLAG_FULLSCREEN)
+    getWindow.getDecorView.setSystemUiVisibility(
+      View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+        | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+        | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+        | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION // hide nav bar
+        | View.SYSTEM_UI_FLAG_FULLSCREEN // hide status bar
+        | View.SYSTEM_UI_FLAG_IMMERSIVE)
     mPreviewView.setSurfaceTextureListener(this)
+
+    val processedView = new ProcessedView(this)
+    processedView.setZOrderOnTop(true)
+    layout.addView(processedView)
+
   }
 
   override def onSurfaceTextureAvailable(surface: SurfaceTexture, width: Int, height: Int) {
-    try {
-      initCamera(surface)
-    }
-    catch {
-      case e: CameraAccessException => Log.e(TAG, "Failed to open camera", e)
-    }
+    initCamera(surface)
   }
 
   override def onSurfaceTextureDestroyed(surface: SurfaceTexture): Boolean = {
@@ -69,25 +80,17 @@ class LiveCameraActivity extends Activity with TypedFindView with TextureView.Su
     mCharacteristics = cc
     val streamConfigs: StreamConfigurationMap = cc.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)
     // determine supported output formats..
-    var supportsRaw: Boolean = false
-    var supportsJpeg: Boolean = false
-    for (format <- streamConfigs.getOutputFormats)
-      format match {
-        case ImageFormat.RAW_SENSOR => supportsRaw = true
-        case ImageFormat.JPEG => supportsJpeg = true
-        case _ =>
-      }
 
-    if (supportsRaw) mCaptureImageFormat = ImageFormat.RAW_SENSOR
-    else if (supportsJpeg) mCaptureImageFormat = ImageFormat.JPEG
-    else throw new CameraAccessException(CameraAccessException.CAMERA_ERROR, "Couldn't find supported image format")
-
+    mCaptureImageFormat = ImageFormat.JPEG
 
     // alternatively, make a way for the user to select a capture size..
     val jpegSize: Size = streamConfigs.getOutputSizes(ImageFormat.JPEG)(0)
     // find the preview size that best matches the aspect ratio of the camera sensor..
     val previewSizes: Array[Size] = streamConfigs.getOutputSizes(classOf[SurfaceTexture])
     mPreviewSize = chooseOptimalSize(previewSizes, mPreviewView.getWidth, mPreviewView.getHeight, jpegSize.getWidth, jpegSize.getHeight, jpegSize)
+
+ //   throw new IllegalArgumentException(s"Size(${mPreviewSize.getWidth}x${mPreviewSize.getHeight})")
+
 
     if (mPreviewSize == null) return
     // set up capture surfaces and image readers..
@@ -116,7 +119,7 @@ class LiveCameraActivity extends Activity with TypedFindView with TextureView.Su
     // scale preview size to fill screen width
     val screenWidth: Int = getResources.getDisplayMetrics.widthPixels
     val previewRatio: Float = mPreviewSize.getWidth / mPreviewSize.getHeight.toFloat
-    val previewHeight: Int = getResources.getDisplayMetrics.heightPixels//screenWidth * previewRatio.round
+    val previewHeight: Int = getResources.getDisplayMetrics.heightPixels //screenWidth * previewRatio.round
     val params: ViewGroup.LayoutParams = mPreviewView.getLayoutParams
     params.width = screenWidth
     params.height = previewHeight
@@ -203,12 +206,13 @@ class LiveCameraActivity extends Activity with TypedFindView with TextureView.Su
     // Pick the smallest of those big enough. If there is no one big enough, pick the
     // largest of those not big enough.
     if (bigEnough.nonEmpty) {
-      bigEnough.min(Ordering.by[Size,Int](x => x.getHeight * x.getWidth))
+      bigEnough.min(Ordering.by[Size, Int](x => x.getHeight * x.getWidth))
     } else if (notBigEnough.nonEmpty) {
-      notBigEnough.min(Ordering.by[Size,Int](x => x.getHeight * x.getWidth))
+      notBigEnough.min(Ordering.by[Size, Int](x => x.getHeight * x.getWidth))
     } else {
       Log.e(TAG, "Couldn't find any suitable preview size")
       choices(0)
     }
   }
+
 }
