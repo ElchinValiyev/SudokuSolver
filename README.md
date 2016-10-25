@@ -8,9 +8,7 @@ Solving sudoku with [Scala](http://www.scala-lang.org/), [JavaCV](https://github
  
 
 - Loading image from file in greyscale
-
 - Using `Canny` for  edge detection
-
 - Find largest contour among detected edges. We assume that sudoku grid will be the biggest object on the image
 - Compute bounding rectangle and apply a perspective transformation to an image
 - Apply `adaptiveTheshold` (image will become binary)
