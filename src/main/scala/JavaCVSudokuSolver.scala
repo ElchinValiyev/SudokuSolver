@@ -20,11 +20,17 @@ class JavaCVSudokuSolver(val classifier: NeuralNetwork, val sudoku: Sudoku) {
   def solve(imageFilePath: String): Unit = {
     // Read an image
     val src: Mat = imread(imageFilePath, IMREAD_GRAYSCALE)
+
+    show(src, "Original image")
+
     println("Detecting edges ...")
     val edges = detectEdges(src)
     val rect = getRectangleWithGrid(edges)
     println("Extracting grid from image ...")
     val grid = extractGridFromImage(src, rect)
+
+    show(grid, "Cropped grid image")
+
     println("Splitting grid into cells ... ")
     val cells = extractCellsFromGridImage(grid)
     println("Recognizing digits ...")
@@ -33,7 +39,9 @@ class JavaCVSudokuSolver(val classifier: NeuralNetwork, val sudoku: Sudoku) {
     println("Solving sudoku ...")
     val solution = sudoku.solve(recognizedDigits)
     sudoku.drawGrid(solution)
+
     showImageWithSolution(grid, solution)
+
     println("Done!")
 
   }
@@ -167,7 +175,7 @@ class JavaCVSudokuSolver(val classifier: NeuralNetwork, val sudoku: Sudoku) {
   def showImageWithSolution(gridImage: Mat, solution: Array[Int]): Unit = {
     val cellSize = gridSize / 9
     var text = for (i <- 0 until 9; j <- 0 until 9)
-      putText(gridImage, solution(i * 9 + j).toString, new Point(j * cellSize, (i + 1) * cellSize - cellSize / 4), FONT_HERSHEY_SIMPLEX, 1, Black, 2, LINE_AA, false)
+      putText(gridImage, solution(i * 9 + j).toString, new Point(j * cellSize + cellSize/4, (i + 1) * cellSize - cellSize / 4), FONT_HERSHEY_SIMPLEX, 1, Black, 2, LINE_AA, false)
 
     show(gridImage, "Solution")
   }
