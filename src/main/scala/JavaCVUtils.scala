@@ -15,8 +15,8 @@ import org.bytedeco.javacv.CanvasFrame
 import org.bytedeco.javacv.OpenCVFrameConverter.ToMat
 
 
-/** Helper methods that simplify use of OpenCV API. */
-object OpenCVUtils {
+/** Helper methods that simplify use of JavaCV API. */
+object JavaCVUtils {
 
   /** Load an image and show in a CanvasFrame. If image cannot be loaded the application will exit with code 1.
     *

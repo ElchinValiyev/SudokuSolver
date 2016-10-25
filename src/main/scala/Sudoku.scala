@@ -119,7 +119,10 @@ class Sudoku {
     for (cell <- grid.indices if grid(cell) != 0) // try to solve with constraint propagation
       assignValue(cell, grid(cell))
     //val it = possibleValues.indices.filter(possibleValues(_).size > 1).iterator // cells without assigned value
-    backTrack() // try to solve with backtracking
-    possibleValues.map(_.head).toArray
+    val solved = backTrack() // try to solve with backtracking
+    if (solved)
+      possibleValues.map(_.head).toArray
+    else
+      throw new Exception("Failed to solve!")
   }
 }

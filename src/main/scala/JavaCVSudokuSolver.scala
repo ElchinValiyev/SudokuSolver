@@ -3,20 +3,17 @@
   * Created by elchin on 24.10.16.
   */
 
-import OpenCVUtils._
+import java.io.File
+
+import JavaCVUtils._
 import org.bytedeco.javacpp.FloatPointer
+import org.bytedeco.javacpp.indexer.FloatIndexer
 import org.bytedeco.javacpp.opencv_core._
 import org.bytedeco.javacpp.opencv_imgcodecs._
 import org.bytedeco.javacpp.opencv_imgproc._
 
+import scala.annotation.switch
 import scala.collection.immutable.IndexedSeq
-
-
-object JavaCVSudokuSolver extends App {
-
-  val solver = new JavaCVSudokuSolver(new NeuralNetwork, new Sudoku)
-  solver.solve("1.jpg")
-}
 
 class JavaCVSudokuSolver(val classifier: NeuralNetwork, val sudoku: Sudoku) {
 
@@ -26,12 +23,20 @@ class JavaCVSudokuSolver(val classifier: NeuralNetwork, val sudoku: Sudoku) {
   def solve(imageFilePath: String): Unit = {
     // Read an image
     val src: Mat = imread(imageFilePath, IMREAD_GRAYSCALE)
+    println("Detecting edges ...")
     val edges = detectEdges(src)
     val rect = getRectangleWithGrid(edges)
+    println("Extracting grid from image ...")
     val grid = extractGridFromImage(src, rect)
+
+
     val cells = extractCellsFromGridImage(grid)
+
     val recognizedDigits = recognizeDigits(cells)
+    println(recognizedDigits.mkString(" "))
+
     val solution = sudoku.solve(recognizedDigits)
+    println("Done")
 
     sudoku.drawGrid(solution)
     showImageWithSolution(grid, solution)
@@ -72,12 +77,53 @@ class JavaCVSudokuSolver(val classifier: NeuralNetwork, val sudoku: Sudoku) {
   }
 
   private def extractGridFromImage(src: Mat, rectangle: Mat) = {
-    val y = new Mat(new Size(2, 4), CV_32F, new FloatPointer(gridSize, 0, 0, 0, 0, gridSize, gridSize, gridSize))
-    rectangle.reshape(1).convertTo(rectangle, CV_32F)
+    rectangle.reshape(1).convertTo(rectangle, CV_32F) // convert rectangle to 1 channel Float matrix
+
+    val indexer = rectangle.createIndexer().asInstanceOf[FloatIndexer]
+    val cornerPoints = for (i <- 0 until rectangle.rows) yield (indexer.get(rectangle.cols * i), indexer.get(rectangle.cols * i + 1))
+    val mapping = getCornersMapping(cornerPoints)
+
     val gridImage = new Mat()
-    val transform = getPerspectiveTransform(rectangle, y)
+    val transform = getPerspectiveTransform(rectangle, mapping)
     warpPerspective(src, gridImage, transform, new Size(gridSize, gridSize))
     gridImage
+  }
+
+  private def getCornersMapping(corners: IndexedSeq[(Float, Float)]) = {
+    def sumOfCoordinates(pointWithIndex: ((Float, Float), Int)) = {
+      val (coordinates, _) = pointWithIndex
+      coordinates._1 + coordinates._2
+    }
+    def diffOfCoordinates(pointWithIndex: ((Float, Float), Int)) = {
+      val (coordinates, _) = pointWithIndex
+      coordinates._1 - coordinates._2
+    }
+
+    val indexedCorners = corners.zipWithIndex
+
+    // the top-left point will have the smallest sum of coordinates, whereas
+    // the bottom-right point will have the largest sum
+    val topLeft = indexedCorners.minBy(sumOfCoordinates)._2
+    val bottomRight = indexedCorners.maxBy(sumOfCoordinates)._2
+
+    // top-right point will have the largest difference (x-y),
+    // whereas the bottom-left will have the smallest difference
+    val topRight = indexedCorners.maxBy(diffOfCoordinates)._2
+    val bottomLeft = indexedCorners.minBy(diffOfCoordinates)._2
+
+    val mapping = new Mat(new Size(2, 4), CV_32F)
+    val indexer = mapping.createIndexer().asInstanceOf[FloatIndexer]
+
+    for (i <- corners.indices) {
+      (i: @switch) match {
+        case `topLeft` => indexer.put(i, 0, 0).put(i, 1, 0)
+        case `topRight` => indexer.put(i, 0, gridSize).put(i, 1, 0)
+        case `bottomLeft` => indexer.put(i, 0, 0).put(i, 1, gridSize)
+        case `bottomRight` => indexer.put(i, 0, gridSize).put(i, 1, gridSize)
+        case _ => println("Error!")
+      }
+    }
+    mapping
   }
 
   private def applyTheshold(image: Mat) = {
@@ -103,7 +149,7 @@ class JavaCVSudokuSolver(val classifier: NeuralNetwork, val sudoku: Sudoku) {
 
     for ((cell, index) <- cells.zipWithIndex) {
 
-      val number = findLargestContour(cell)
+      val number = findLargestContour(cell.clone)
       // if cell is not empty
       if (number != null) {
 
