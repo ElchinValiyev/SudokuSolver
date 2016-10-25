@@ -3,10 +3,7 @@
   * Created by elchin on 24.10.16.
   */
 
-import java.io.File
-
 import JavaCVUtils._
-import org.bytedeco.javacpp.FloatPointer
 import org.bytedeco.javacpp.indexer.FloatIndexer
 import org.bytedeco.javacpp.opencv_core._
 import org.bytedeco.javacpp.opencv_imgcodecs._
@@ -16,9 +13,9 @@ import scala.annotation.switch
 import scala.collection.immutable.IndexedSeq
 
 class JavaCVSudokuSolver(val classifier: NeuralNetwork, val sudoku: Sudoku) {
-
-  val gridSize = 450
-  val Black = new Scalar(0, 0, 0, 0)
+  // height and width of cropped grid image
+  private val gridSize = 450
+  private val Black = new Scalar(0, 0, 0, 0)
 
   def solve(imageFilePath: String): Unit = {
     // Read an image
@@ -28,25 +25,24 @@ class JavaCVSudokuSolver(val classifier: NeuralNetwork, val sudoku: Sudoku) {
     val rect = getRectangleWithGrid(edges)
     println("Extracting grid from image ...")
     val grid = extractGridFromImage(src, rect)
-
-
+    println("Splitting grid into cells ... ")
     val cells = extractCellsFromGridImage(grid)
-
+    println("Recognizing digits ...")
     val recognizedDigits = recognizeDigits(cells)
-    println(recognizedDigits.mkString(" "))
-
+    // println(recognizedDigits.mkString(" "))
+    println("Solving sudoku ...")
     val solution = sudoku.solve(recognizedDigits)
-    println("Done")
-
     sudoku.drawGrid(solution)
     showImageWithSolution(grid, solution)
+    println("Done!")
 
   }
 
-  private def detectEdges(src: Mat): Mat = {
-    val canny = new Mat()
-    Canny(src, canny, 50, 200, 3, true)
-    canny
+  /** Use canny edge detector */
+  private def detectEdges(sourceImage: Mat): Mat = {
+    val edges = new Mat()
+    Canny(sourceImage, edges, 50, 200, 3, true)
+    edges
   }
 
   private def getRectangleWithGrid(canny: Mat) = {

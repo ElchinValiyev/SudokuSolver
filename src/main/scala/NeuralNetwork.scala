@@ -14,6 +14,7 @@ import org.nd4j.linalg.dataset.DataSet
 import org.nd4j.linalg.factory.Nd4j
 import org.nd4j.linalg.lossfunctions.LossFunctions.LossFunction
 
+
 class NeuralNetwork {
 
   val inputImageWidth = 10
@@ -35,7 +36,8 @@ class NeuralNetwork {
     val output = Nd4j.zeros(numberOfExamples, numberOfClasses)
 
     val digitFolders = exampleFolder.listFiles()
-    for ((folder, index) <- digitFolders.zipWithIndex if folder.isDirectory) {
+    val shuffler = util.Random.shuffle(0 to (numberOfExamples - 1)).toIterator.buffered
+    for (folder <- digitFolders if folder.isDirectory) {
 
       val files = folder.listFiles()
       for (file <- files if file.isFile) {
@@ -50,8 +52,8 @@ class NeuralNetwork {
           bytes(j) = if (bytes(j) < 0) 1 else 0
 
         val target = folder.getName()(0) - '0'
-        input.putRow(index, Nd4j.create(bytes.map(_.toDouble)))
-        output.putRow(index, Nd4j.create(Array.tabulate(numberOfClasses)(i => if (i == target) 1.0 else 0.0)))
+        input.putRow(shuffler.head, Nd4j.create(bytes.map(_.toDouble)))
+        output.putRow(shuffler.next(), Nd4j.create(Array.tabulate(numberOfClasses)(i => if (i == target) 1.0 else 0.0)))
       }
     }
     println("Dataset is ready!")
@@ -75,9 +77,8 @@ class NeuralNetwork {
     new NeuralNetConfiguration.Builder()
       .optimizationAlgo(OptimizationAlgorithm.STOCHASTIC_GRADIENT_DESCENT)
       .iterations(1)
-      .learningRate(0.01)
-      .updater(Updater.ADADELTA)
-      .miniBatch(true)
+      .learningRate(0.1)
+      .updater(Updater.ADAM)
       .list()
       .layer(0, new DenseLayer.Builder()
         .nIn(inputNum)
