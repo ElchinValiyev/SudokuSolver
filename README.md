@@ -1,8 +1,9 @@
  Yet Another Sudoku Solver
 =================================================
-Solving sudoku with [Scala](http://www.scala-lang.org/), [JavaCV](https://github.com/bytedeco/javacv) (Image processing) and [DeepLearning4j](https://deeplearning4j.org/) (OCR)
+Solving sudoku with [Scala](http://www.scala-lang.org/), [JavaCV](https://github.com/bytedeco/javacv) (Image processing) and [DeepLearning4j](https://deeplearning4j.org/) (OCR) 
 
-###Program execution steps: 
+### Program execution steps: 
+
 ![Program steps](steps.png)
 
  
